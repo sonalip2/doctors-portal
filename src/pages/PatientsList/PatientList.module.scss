@@ -49,8 +49,16 @@
         td {
             padding: 8px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+
+            .toggleImage {
+                width: 30px !important;
+                height: 30px !important;
+            }
         }
+    }
+
+    .toggleBlock {
+        border-bottom: 1px solid #ddd;
     }
 }
 

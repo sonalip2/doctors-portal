@@ -1,103 +1,59 @@
 import React from "react";
+import { connect } from "react-redux";
 import s from "./PatientList.module.scss";
-// import TableRow from "../TableRow";
 import BasicInput from "../../components/BasicInput";
 import Button from "../../components/Button";
+import PatientItem from "./PatientItem";
+import { getPatients } from '../../service/patients';
+import * as patientActions from "../../actions/patientActions";
 
 class PatientList extends React.Component {
   constructor(props) {
     super(props);
-    const patientsData = localStorage.getItem("patients");
-    this.patients = patientsData ? JSON.parse(patientsData) : [];
+
     this.dataToDisplay = 5;
     this.state = {
-      currentPage: 0,
-      patients: [...this.patients].splice(0, this.dataToDisplay),
-      sortBy: {
-        field: null,
-        ascDesc: "asc"
-      },
+      patients: [],
+      currentPage: 1,
       search: ""
     };
   }
 
-  filterData = (search, currentPage, sortBy) => {
-    const newPatients = this.patients.filter(patient => {
-      if (
-        patient.firstName.indexOf(search) !== -1 ||
-        patient.email.indexOf(search) !== -1 ||
-        patient.age.indexOf(search) !== -1 ||
-        patient.gender.indexOf(search) !== -1
-      ) {
-        return true;
-      }
-      return false;
-    });
+  componentDidMount() {
+    this.setPatientsData();
+  }
 
-    if (sortBy && sortBy.field) {
-      newPatients.sort((row1, row2) => {
-        const row1a = row1[sortBy.field].toUpperCase();
-        const row2b = row2[sortBy.field].toUpperCase();
-        let comparison = 0;
-        if (row1a > row2b) {
-          comparison = sortBy.ascDesc === "asc" ? 1 : -1;
-        } else if (row1a < row2b) {
-          comparison = sortBy.ascDesc === "asc" ? -1 : 1;
-        }
-        return comparison;
-      });
-    }
-
-    this.setState({
-      patients: newPatients.splice(
-        currentPage * this.dataToDisplay,
-        this.dataToDisplay
-      )
-    });
-  };
+  setPatientsData = async (search = "", page = 1, limit = this.dataToDisplay) => {
+    const patients = await getPatients(page, limit, search);
+    this.setState({ patients });
+  }
 
   handleSearchChange = e => {
-    const { sortBy } = this.state;
     this.setState({ search: e.target.value, currentPage: 1 });
-    this.filterData(e.target.value, 0, sortBy);
-  };
-
-  handleChangeSortBy = column => {
-    const { search, sortBy } = this.state;
-    const newSortBy = {
-      field: column,
-      ascDesc:
-        sortBy.field === column && sortBy.ascDesc === "asc" ? "desc" : "asc"
-    };
-    this.setState({ sortBy: newSortBy, currentPage: 1 });
-    this.filterData(search, 0, newSortBy);
+    this.setPatientsData(e.target.value);
   };
 
   handlePrevClick = () => {
-    const { currentPage, search, sortBy } = this.state;
+    const { currentPage, search } = this.state;
     const newCurrentPage = currentPage - 1;
-    if (newCurrentPage < 0) return;
+    if (newCurrentPage < 1) return;
     this.setState({ currentPage: newCurrentPage });
-    this.filterData(search, newCurrentPage, sortBy);
+    this.setPatientsData(search, newCurrentPage);
   };
 
   handleNextClick = () => {
-    const { currentPage, search, sortBy, patients } = this.state;
+    const { currentPage, search, patients } = this.state;
     if (patients.length < this.dataToDisplay) {
       return;
     }
     const newCurrentPage = currentPage + 1;
     this.setState({ currentPage: newCurrentPage });
-    this.filterData(search, newCurrentPage, sortBy);
-  };
-
-  handlePatientClick = id => {
-    const { history } = this.props;
-    history.push(`/patients/${id}`);
+    this.setPatientsData(search, newCurrentPage);
   };
 
   render() {
-    const { search, patients, sortBy } = this.state;
+    const { search, patients } = this.state;
+    const { updatedPatients } = this.props;
 
     return (
       <div className={s.root}>
@@ -110,65 +66,47 @@ class PatientList extends React.Component {
           <table className={s.table}>
             <thead className={s.head}>
               <tr>
-                <th
-                  className={
-                    sortBy.field === "firstName" ? s[sortBy.ascDesc] : undefined
-                  }
-                  onClick={() => this.handleChangeSortBy("firstName")}
-                >
-                  First Name
+                <th  >
+                  Name
                 </th>
-                <th
-                  className={
-                    sortBy.field === "email" ? s[sortBy.ascDesc] : undefined
-                  }
-                  onClick={() => this.handleChangeSortBy("email")}
-                >
+                <th  >
+                  Username
+                </th>
+                <th>
                   Email
                 </th>
-                <th
-                  className={
-                    sortBy.field === "gender" ? s[sortBy.ascDesc] : undefined
-                  }
-                  onClick={() => this.handleChangeSortBy("gender")}
-                >
-                  Gender
+                <th>
+                  phone
                 </th>
-                <th
-                  className={
-                    sortBy.field === "age" ? s[sortBy.ascDesc] : undefined
-                  }
-                  onClick={() => this.handleChangeSortBy("age")}
-                >
-                  Age
+                <th>Company</th>
+                <th>
+                  Expand
                 </th>
               </tr>
             </thead>
             <tbody className={s.body}>
-              {patients.map((patient, index) => (
-                <tr key={index} onClick={() => this.handlePatientClick(index)}>
-                  <td>{patient.firstName}</td>
-                  <td>{patient.email}</td>
-                  <td>{patient.gender}</td>
-                  <td>{patient.age}</td>
-                </tr>
-              ))}
+              {
+                patients.length > 0 && patients.map((patient, index) => (
+                  <PatientItem patient={updatedPatients[patient.id] ? updatedPatients[patient.id] : patient} key={patient.id} />
+                ))
+              }
             </tbody>
           </table>
-          {this.patients.length > this.dataToDisplay && (
-            <div className={s.btnContainer}>
-              <Button className="primary" onClick={this.handlePrevClick}>
-                Prev
+          <div className={s.btnContainer}>
+            <Button className="primary" onClick={this.handlePrevClick}>
+              Prev
               </Button>
-              <Button className="primary" onClick={this.handleNextClick}>
-                Next
+            <Button className="primary" onClick={this.handleNextClick}>
+              Next
               </Button>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     );
   }
 }
 
-export default PatientList;
+export default connect(
+  state => ({
+    updatedPatients: state.patients.updatedPatients
+  }))(PatientList);
